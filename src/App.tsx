@@ -434,7 +434,6 @@ function App() {
     { id: '2', name: 'Scenario 2', totalVehicles: 150, nonRegisteredVehicles: 75, strategicSavings: 15, resale: 35, lifecycle: 6 },
   ]
   /** Call when restoring scenarios from localStorage; replaces legacy 120/150 seed with single 650 default when applicable. */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used when restoring from localStorage
   function migrateScenariosIfNeeded(loaded: Scenario[]): Scenario[] {
     if (loaded.length !== legacySeedScenarios.length) return loaded
     const match = loaded.every((s, i) => {
@@ -1249,7 +1248,7 @@ function App() {
       ...s.futureAssumptions,
       fleetMix,
     }
-    const scenariosMerged: Scenario[] = Array.isArray(s.scenarios) && s.scenarios.length > 0
+    const scenariosRaw: Scenario[] = Array.isArray(s.scenarios) && s.scenarios.length > 0
       ? s.scenarios.map((sc, i) => ({
           ...DEFAULT_SCENARIO,
           id: sc.id ?? `sc-${i + 1}`,
@@ -1261,6 +1260,7 @@ function App() {
           lifecycle: typeof sc.lifecycle === 'number' ? sc.lifecycle : DEFAULT_SCENARIO.lifecycle,
         }))
       : [DEFAULT_SCENARIO]
+    const scenariosMerged = migrateScenariosIfNeeded(scenariosRaw)
     const selectedIndex = Math.min(
       Math.max(0, typeof s.selectedScenarioIndex === 'number' ? s.selectedScenarioIndex : 0),
       scenariosMerged.length - 1
