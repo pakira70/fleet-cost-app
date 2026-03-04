@@ -1843,7 +1843,6 @@ function App() {
                   const fuelPerVehicleBaseline = todayInputs.totalVehicles > 0 ? todayInputs.fuelAnnual / todayInputs.totalVehicles : 0
                   const futureVehicles = selectedScenario?.totalVehicles ?? todayInputs.totalVehicles
                   const fuelPreEfficiency = fuelPerVehicleBaseline * futureVehicles
-                  const fuelEfficiencyPct = futureAssumptions.fuelEfficiency / 100
                   const copySummary = () => {
                     const lines: string[] = [
                       'Model Logic Summary',
