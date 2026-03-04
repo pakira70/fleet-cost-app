@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import LZString from 'lz-string'
-import { Share2, Download, MoreHorizontal, SlidersHorizontal, Settings2, Pencil, Copy, RotateCcw, Trash2 } from 'lucide-react'
+import { Share2, Download, MoreHorizontal, SlidersHorizontal, Settings2, Pencil, Copy, RotateCcw, Trash2, Calculator, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface TodayInputs {
   totalVehicles: number
@@ -34,9 +34,10 @@ interface FleetMixType {
 }
 
 interface FutureAssumptions {
-  serviceLifeYears: number
   fleetMix: FleetMixType[]
+  nonRegisteredVehicles: number
   fuelEfficiency: number
+  maintenanceSavingsPct: number
   laborAnnual: number
   telematicsCostPerVehicle: number
   planonAnnual: number
@@ -94,9 +95,10 @@ const defaultFleetMix: FleetMixType[] = [
 ]
 
 const defaultFutureAssumptions: FutureAssumptions = {
-  serviceLifeYears: 7,
   fleetMix: defaultFleetMix,
+  nonRegisteredVehicles: 50,
   fuelEfficiency: 0,
+  maintenanceSavingsPct: 0,
   laborAnnual: 323750,
   telematicsCostPerVehicle: 300,
   planonAnnual: 20000,
@@ -448,7 +450,6 @@ function App() {
 
   // Global Future Assumptions (applies to all scenarios)
   const [futureAssumptions, setFutureAssumptions] = useState<FutureAssumptions>({
-    serviceLifeYears: 7,
     fleetMix: [
       { name: 'SUV', share: 20, unitCost: 45000 },
       { name: 'Cargo Van', share: 25, unitCost: 55000 },
@@ -456,7 +457,9 @@ function App() {
       { name: 'Box Truck', share: 20, unitCost: 62500 },
       { name: 'Kubota / ATV', share: 15, unitCost: 17500 },
     ],
+    nonRegisteredVehicles: 50,
     fuelEfficiency: 0,
+    maintenanceSavingsPct: 0,
     laborAnnual: 323750,
     telematicsCostPerVehicle: 300, // $25/vehicle/month = $300/vehicle/year
     planonAnnual: 20000,
@@ -492,6 +495,7 @@ function App() {
   // Results visualization: which metric to show in bar chart (A = Total Program Cost, B = Cost/Vehicle/Month ex fuel)
   // Cost drivers section: default collapsed
   const [resultsViewMode, setResultsViewMode] = useState<'score' | 'costDrivers'>('score')
+  const [modelLogicExpanded, setModelLogicExpanded] = useState(false)
 
   const showToast = (message: string) => {
     // Clear existing timer if any
@@ -530,8 +534,9 @@ function App() {
 
   // Field bounds configuration for future assumptions (global)
   const futureAssumptionBounds = {
-    serviceLifeYears: { min: 1, max: 20, step: 1, type: 'integer' as const },
+    nonRegisteredVehicles: { min: 0, max: 3000, step: 5, type: 'integer' as const },
     fuelEfficiency: { min: 0, max: 50, step: 1, type: 'percent' as const },
+    maintenanceSavingsPct: { min: 0, max: 100, step: 1, type: 'percent' as const },
     laborAnnual: { min: 0, max: 10000000, step: 1000, type: 'integer' as const },
     telematicsCostPerVehicle: { min: 0, max: 5000, step: 10, type: 'integer' as const },
     planonAnnual: { min: 0, max: 10000000, step: 1000, type: 'integer' as const },
@@ -595,8 +600,9 @@ function App() {
 
   // Local string state for Future Assumptions (formatted for display)
   const [futureAssumptionsStrings, setFutureAssumptionsStrings] = useState({
-    serviceLifeYears: formatInteger(7),
+    nonRegisteredVehicles: formatInteger(50),
     fuelEfficiency: formatPercent(0),
+    maintenanceSavingsPct: formatPercent(0),
     laborAnnual: formatCurrency(323750),
     telematicsCostPerVehicle: formatCurrency(300),
     planonAnnual: formatCurrency(20000),
@@ -723,7 +729,7 @@ function App() {
     const annualResale = replacementVolume * avgVehicleCost * resaleRecoveryPct
 
     const todayRegistered = Math.max(0, todayInputs.totalVehicles - todayInputs.nonRegisteredVehicles)
-    const futureRegistered = Math.max(0, scenario.totalVehicles - scenario.nonRegisteredVehicles)
+    const futureRegistered = Math.max(0, scenario.totalVehicles - futureAssumptions.nonRegisteredVehicles)
 
     const insuranceUnit = todayRegistered > 0 ? todayInputs.insurance / todayRegistered : 0
     const futureInsurance = insuranceUnit * futureRegistered
@@ -732,7 +738,8 @@ function App() {
     const futureRegistration = registrationUnit * futureRegistered
 
     const maintenanceUnit = todayInputs.totalVehicles > 0 ? todayInputs.maintenance / todayInputs.totalVehicles : 0
-    const futureMaintenance = maintenanceUnit * scenario.totalVehicles
+    const maintenanceSavingsFactor = 1 - futureAssumptions.maintenanceSavingsPct / 100
+    const futureMaintenance = maintenanceUnit * scenario.totalVehicles * maintenanceSavingsFactor
 
     const futureTelematics = futureAssumptions.telematicsCostPerVehicle * scenario.totalVehicles
     const planonCost = futureAssumptions.planonAnnual
@@ -829,10 +836,11 @@ function App() {
 
     // Future Assumptions (labels match UI)
     const faLabels: { key: keyof FutureAssumptions; label: string }[] = [
-      { key: 'serviceLifeYears', label: 'Service life years' },
+      { key: 'nonRegisteredVehicles', label: 'Golf Carts / Non-registered Vehicles' },
       { key: 'fuelEfficiency', label: 'Fuel efficiency (%)' },
+      { key: 'maintenanceSavingsPct', label: 'Maintenance savings (%)' },
       { key: 'laborAnnual', label: 'Labor annual' },
-      { key: 'telematicsCostPerVehicle', label: 'Telematics cost per vehicle' },
+      { key: 'telematicsCostPerVehicle', label: 'Telematics cost per vehicle (Annual $)' },
       { key: 'planonAnnual', label: 'Planon (annual)' },
       { key: 'avgVehiclePrice', label: 'Avg vehicle price' },
     ]
@@ -843,8 +851,8 @@ function App() {
         push([label, Array.isArray(v) ? '' : String(v)])
         return
       }
-      if (key === 'serviceLifeYears') push([label, formatIntegerForCsv(v)])
-      else if (key === 'fuelEfficiency') push([label, formatPercentForCsv(v)])
+      if (key === 'nonRegisteredVehicles') push([label, formatIntegerForCsv(v)])
+      else if (key === 'fuelEfficiency' || key === 'maintenanceSavingsPct') push([label, formatPercentForCsv(v)])
       else push([label, formatCurrencyForCsv(v)])
     })
     push(['Fleet Mix - Name', 'Share %', 'Unit Cost'])
@@ -987,6 +995,11 @@ function App() {
     if (scenarios.length === 0) setViewingBaseline(true)
   }, [scenarios.length])
 
+  // Set page title so it's correct regardless of cached HTML
+  useEffect(() => {
+    document.title = 'Princeton Fleet Scenarios'
+  }, [])
+
   const maxScenarios = 3
   const canAddScenario = scenarios.length < maxScenarios
 
@@ -997,7 +1010,7 @@ function App() {
       id: newId,
       name: `Scenario ${scenarios.length + 1}`,
       totalVehicles: todayInputs.totalVehicles,
-      nonRegisteredVehicles: todayInputs.nonRegisteredVehicles,
+      nonRegisteredVehicles: futureAssumptions.nonRegisteredVehicles,
       strategicSavings: 0,
       resale: 0,
       lifecycle: 7,
@@ -1078,7 +1091,7 @@ function App() {
   }
 
   type FutureField = 'totalVehicles' | 'nonRegisteredVehicles' | 'strategicSavings' | 'resale' | 'lifecycle'
-  type FutureAssumptionField = 'serviceLifeYears' | 'fuelEfficiency' | 'laborAnnual' | 'telematicsCostPerVehicle' | 'planonAnnual' | 'avgVehiclePrice'
+  type FutureAssumptionField = 'nonRegisteredVehicles' | 'fuelEfficiency' | 'maintenanceSavingsPct' | 'laborAnnual' | 'telematicsCostPerVehicle' | 'planonAnnual' | 'avgVehiclePrice'
 
   // Handle Enter key to commit input (same as blur)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, onBlur: () => void) => {
@@ -1183,16 +1196,18 @@ function App() {
     let message: string | undefined
     if (wasClamped) {
       if (rawValue > maxValue) {
-        const fieldName = field === 'serviceLifeYears' ? 'Service life years' :
+        const fieldName = field === 'nonRegisteredVehicles' ? 'Golf carts / non-registered vehicles' :
                          field === 'fuelEfficiency' ? 'Fuel efficiency' :
+                         field === 'maintenanceSavingsPct' ? 'Maintenance savings %' :
                          field === 'laborAnnual' ? 'Labor annual' :
                          field === 'telematicsCostPerVehicle' ? 'Telematics cost per vehicle' :
                          field === 'planonAnnual' ? 'Planon (annual)' :
                          field === 'avgVehiclePrice' ? 'Avg vehicle price' : field
         message = `${fieldName} adjusted to ${clampedValue}${bounds.type === 'percent' ? '%' : ''} (maximum allowed).`
       } else if (rawValue < bounds.min) {
-        const fieldName = field === 'serviceLifeYears' ? 'Service life years' :
+        const fieldName = field === 'nonRegisteredVehicles' ? 'Golf carts / non-registered vehicles' :
                          field === 'fuelEfficiency' ? 'Fuel efficiency' :
+                         field === 'maintenanceSavingsPct' ? 'Maintenance savings %' :
                          field === 'laborAnnual' ? 'Labor annual' :
                          field === 'telematicsCostPerVehicle' ? 'Telematics cost per vehicle' :
                          field === 'planonAnnual' ? 'Planon (annual)' :
@@ -1211,8 +1226,8 @@ function App() {
   }
 
   const formatFutureAssumptionDisplay = (field: FutureAssumptionField, numValue: number): string => {
-    if (field === 'fuelEfficiency') return formatPercent(numValue)
-    if (field === 'serviceLifeYears') return formatInteger(numValue)
+    if (field === 'nonRegisteredVehicles') return formatInteger(numValue)
+    if (field === 'fuelEfficiency' || field === 'maintenanceSavingsPct') return formatPercent(numValue)
     return formatCurrency(numValue)
   }
 
@@ -1243,10 +1258,16 @@ function App() {
     const fleetMix = (s.futureAssumptions?.fleetMix != null && Array.isArray(s.futureAssumptions.fleetMix) && s.futureAssumptions.fleetMix.length > 0)
       ? s.futureAssumptions.fleetMix
       : defaultFleetMix
+    const fa = s.futureAssumptions
     const futureAssumptionsMerged: FutureAssumptions = {
-      ...defaultFutureAssumptions,
-      ...s.futureAssumptions,
       fleetMix,
+      nonRegisteredVehicles: (fa?.nonRegisteredVehicles != null) ? fa.nonRegisteredVehicles : defaultFutureAssumptions.nonRegisteredVehicles,
+      fuelEfficiency: (fa?.fuelEfficiency != null) ? fa.fuelEfficiency : defaultFutureAssumptions.fuelEfficiency,
+      maintenanceSavingsPct: (fa?.maintenanceSavingsPct != null) ? fa.maintenanceSavingsPct : defaultFutureAssumptions.maintenanceSavingsPct,
+      laborAnnual: (fa?.laborAnnual != null) ? fa.laborAnnual : defaultFutureAssumptions.laborAnnual,
+      telematicsCostPerVehicle: (fa?.telematicsCostPerVehicle != null) ? fa.telematicsCostPerVehicle : defaultFutureAssumptions.telematicsCostPerVehicle,
+      planonAnnual: (fa?.planonAnnual != null) ? fa.planonAnnual : defaultFutureAssumptions.planonAnnual,
+      avgVehiclePrice: (fa?.avgVehiclePrice != null) ? fa.avgVehiclePrice : defaultFutureAssumptions.avgVehiclePrice,
     }
     const scenariosRaw: Scenario[] = Array.isArray(s.scenarios) && s.scenarios.length > 0
       ? s.scenarios.map((sc, i) => ({
@@ -1288,8 +1309,9 @@ function App() {
       telematics: formatCurrency(todayInputsMerged.telematics),
     })
     setFutureAssumptionsStrings({
-      serviceLifeYears: formatInteger(futureAssumptionsMerged.serviceLifeYears),
+      nonRegisteredVehicles: formatInteger(futureAssumptionsMerged.nonRegisteredVehicles),
       fuelEfficiency: formatPercent(futureAssumptionsMerged.fuelEfficiency),
+      maintenanceSavingsPct: formatPercent(futureAssumptionsMerged.maintenanceSavingsPct),
       laborAnnual: formatCurrency(futureAssumptionsMerged.laborAnnual),
       telematicsCostPerVehicle: formatCurrency(futureAssumptionsMerged.telematicsCostPerVehicle),
       planonAnnual: formatCurrency(futureAssumptionsMerged.planonAnnual),
@@ -1341,13 +1363,13 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- we only want to persist when these state slices change
   }, [sharedMode, todayInputs, futureAssumptions, scenarios, selectedScenarioIndex, viewingBaseline])
 
-  // Reset scenario to baseline values (only primary levers)
+  // Reset scenario to baseline values (only primary levers); golf carts stay from Future Settings
   const handleResetToBaseline = () => {
     const updated = [...scenarios]
     updated[selectedScenarioIndex] = {
       ...updated[selectedScenarioIndex],
       totalVehicles: todayInputs.totalVehicles,
-      nonRegisteredVehicles: todayInputs.nonRegisteredVehicles,
+      nonRegisteredVehicles: futureAssumptions.nonRegisteredVehicles,
       strategicSavings: 0, // Default baseline
       resale: 0, // Default baseline
     }
@@ -1449,7 +1471,7 @@ function App() {
           <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col shrink-0">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">
-              Fleet Scenarios
+              Princeton Fleet Scenarios
             </h2>
             <div className="flex items-center gap-1">
               <button
@@ -1795,6 +1817,192 @@ function App() {
                   </div>
                 )
               })()}
+
+              {/* Model Logic — collapsible accordion below Cost Drivers */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50/50">
+                <button
+                  type="button"
+                  onClick={() => setModelLogicExpanded(!modelLogicExpanded)}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-left rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                  aria-expanded={modelLogicExpanded}
+                  title="Model Logic"
+                >
+                  <Calculator className="w-5 h-5 shrink-0" />
+                  <span className="font-medium">Model Logic</span>
+                  {modelLogicExpanded ? <ChevronDown className="w-5 h-5 shrink-0 ml-auto" /> : <ChevronRight className="w-5 h-5 shrink-0 ml-auto" />}
+                </button>
+                {modelLogicExpanded && (() => {
+                  const isBaseline = viewingBaseline || !selectedScenario
+                  const currentComputed = isBaseline ? baselineComputed : getScenarioComputed(selectedScenario!)
+                  const scenarioRaw = !isBaseline && selectedScenario ? computeScenarioCosts(selectedScenario) : null
+                  const todayRegistered = Math.max(0, todayInputs.totalVehicles - todayInputs.nonRegisteredVehicles)
+                  const futureRegistered = selectedScenario ? Math.max(0, selectedScenario.totalVehicles - futureAssumptions.nonRegisteredVehicles) : 0
+                  const insurancePerRegistered = todayRegistered > 0 ? todayInputs.insurance / todayRegistered : 0
+                  const registrationPerRegistered = todayRegistered > 0 ? todayInputs.registration / todayRegistered : 0
+                  const maintenancePerVehicle = todayInputs.totalVehicles > 0 ? todayInputs.maintenance / todayInputs.totalVehicles : 0
+                  const fuelPerVehicleBaseline = todayInputs.totalVehicles > 0 ? todayInputs.fuelAnnual / todayInputs.totalVehicles : 0
+                  const futureVehicles = selectedScenario?.totalVehicles ?? todayInputs.totalVehicles
+                  const fuelPreEfficiency = fuelPerVehicleBaseline * futureVehicles
+                  const fuelEfficiencyPct = futureAssumptions.fuelEfficiency / 100
+                  const copySummary = () => {
+                    const lines: string[] = [
+                      'Model Logic Summary',
+                      `Case: ${isBaseline ? 'Baseline (snapshot year)' : selectedScenario!.name}`,
+                      `Total Program Cost (Annual): ${formatCurrency(currentComputed.totalProgramCostAnnual)}`,
+                      `Cost / Vehicle / Month (ex fuel): ${formatCurrency(currentComputed.costPerVehPerMonthExFuel)}`,
+                      `Total Vehicles: ${formatInteger(currentComputed.totalVehicles)}`,
+                      ...(currentComputed.lifecycleYears != null ? [`Lifecycle (Years): ${formatInteger(currentComputed.lifecycleYears)}`] : []),
+                      '---',
+                      ...(Object.entries(currentComputed.breakdown) as [keyof typeof currentComputed.breakdown, number][]).map(([k, v]) => `${k}: ${formatCurrency(v)}`),
+                    ]
+                    void navigator.clipboard.writeText(lines.join('\n')).then(() => showToast('Summary copied to clipboard'))
+                  }
+                  const FormulaBlock = ({ formula, values, result }: { formula: string; values: string; result: string }) => (
+                    <div className="py-2 border-b border-gray-100 last:border-0">
+                      <p className="text-xs text-gray-500 mb-0.5">Formula</p>
+                      <p className="font-mono text-sm text-gray-800 mb-1">{formula}</p>
+                      <p className="text-xs text-gray-500 mb-0.5">Values</p>
+                      <p className="font-mono text-sm text-gray-700 mb-1">{values}</p>
+                      <p className="text-xs text-gray-500 mb-0.5">Result</p>
+                      <p className="font-mono text-sm font-medium text-gray-900">{result}</p>
+                    </div>
+                  )
+                  return (
+                    <div className="px-4 pb-4 pt-1 border-t border-gray-200">
+                      <div className="flex justify-end mb-3">
+                        <button
+                          type="button"
+                          onClick={copySummary}
+                          className="text-xs px-2 py-1.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                        >
+                          Copy summary
+                        </button>
+                      </div>
+                      <div className="space-y-4 text-sm">
+                        {/* Section A: Scenario context */}
+                        <div>
+                          <h4 className="font-semibold text-gray-800 mb-2">A. Scenario context</h4>
+                          <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-1.5 font-mono">
+                            <p><span className="text-gray-500">Case:</span> {isBaseline ? 'Baseline (snapshot year)' : selectedScenario!.name}</p>
+                            <p><span className="text-gray-500">Total Vehicles:</span> {formatInteger(currentComputed.totalVehicles)}</p>
+                            {currentComputed.lifecycleYears != null ? (
+                              <>
+                                <p><span className="text-gray-500">Lifecycle Years:</span> {formatInteger(currentComputed.lifecycleYears)}</p>
+                                <p><span className="text-gray-500">Purchase Reduction %:</span> {formatPercent(selectedScenario!.strategicSavings)}</p>
+                                <p><span className="text-gray-500">Resale Recovery %:</span> {formatPercent(selectedScenario!.resale)}</p>
+                              </>
+                            ) : (
+                              <p className="text-gray-600 italic">Labor excluded in baseline. Future settings do not apply.</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Section B: Core lifecycle math (future only) */}
+                        {!isBaseline && scenarioRaw && selectedScenario && (
+                          <div>
+                            <h4 className="font-semibold text-gray-800 mb-2">B. Core lifecycle math</h4>
+                            <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-0">
+                              <FormulaBlock
+                                formula="Vehicles Purchased per Year = Total Vehicles ÷ Lifecycle Years"
+                                values={`${formatInteger(selectedScenario.totalVehicles)} ÷ ${formatInteger(selectedScenario.lifecycle)} = ${formatInteger(Math.round(scenarioRaw.replacementVolume))}`}
+                                result={`${formatInteger(Math.round(scenarioRaw.replacementVolume))} vehicles/yr`}
+                              />
+                              <FormulaBlock
+                                formula="Annual Purchase Spend (gross) = Vehicles Purchased per Year × Avg Vehicle Price"
+                                values={`${formatInteger(Math.round(scenarioRaw.replacementVolume))} × ${formatCurrency(derivedAvgVehicleCost)} = ${formatCurrency(Math.round(scenarioRaw.replacementVolume * derivedAvgVehicleCost))}`}
+                                result={formatCurrency(Math.round(scenarioRaw.replacementVolume * derivedAvgVehicleCost))}
+                              />
+                              {(() => {
+                                const gross = scenarioRaw.replacementVolume * derivedAvgVehicleCost
+                                const savings = gross * (selectedScenario.strategicSavings / 100)
+                                return (
+                                  <>
+                                    <FormulaBlock
+                                      formula="Strategic Procurement Savings = Annual Purchase Spend (gross) × Purchase Reduction %"
+                                      values={`${formatCurrency(Math.round(gross))} × ${formatPercent(selectedScenario.strategicSavings)} = ${formatCurrency(Math.round(savings))}`}
+                                      result={formatCurrency(Math.round(savings))}
+                                    />
+                                    <FormulaBlock
+                                      formula="Net Annual Purchase Spend = Annual Purchase Spend (gross) − Strategic Procurement Savings"
+                                      values={`${formatCurrency(Math.round(gross))} − ${formatCurrency(Math.round(savings))} = ${formatCurrency(currentComputed.breakdown.purchase)}`}
+                                      result={formatCurrency(currentComputed.breakdown.purchase)}
+                                    />
+                                  </>
+                                )
+                              })()}
+                              <FormulaBlock
+                                formula="Annual Resale Value = (Vehicles Purchased per Year × Avg Vehicle Price) × Resale Recovery %"
+                                values={`(${formatInteger(Math.round(scenarioRaw.replacementVolume))} × ${formatCurrency(derivedAvgVehicleCost)}) × ${formatPercent(selectedScenario.resale)} = ${formatCurrency(currentComputed.breakdown.resale)}`}
+                                result={formatCurrency(currentComputed.breakdown.resale)}
+                              />
+                              <FormulaBlock
+                                formula="Net Capital Cost (annual) = Net Annual Purchase Spend − Annual Resale Value"
+                                values={`${formatCurrency(currentComputed.breakdown.purchase)} − ${formatCurrency(currentComputed.breakdown.resale)} = ${formatCurrency(currentComputed.breakdown.purchase - currentComputed.breakdown.resale)}`}
+                                result={formatCurrency(currentComputed.breakdown.purchase - currentComputed.breakdown.resale)}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Section C: Scaled operating costs */}
+                        <div>
+                          <h4 className="font-semibold text-gray-800 mb-2">C. Scaled operating costs</h4>
+                          <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-0">
+                            {isBaseline ? (
+                              <>
+                                <FormulaBlock
+                                  formula="Total Program Cost (Baseline) = sum of baseline cost lines"
+                                  values={`${formatCurrency(currentComputed.breakdown.purchase)} − ${formatCurrency(currentComputed.breakdown.resale)} + ${formatCurrency(currentComputed.breakdown.insurance)} + … = ${formatCurrency(currentComputed.totalProgramCostAnnual)}`}
+                                  result={formatCurrency(currentComputed.totalProgramCostAnnual)}
+                                />
+                                <FormulaBlock
+                                  formula="Cost / Vehicle / Month (Baseline, ex fuel) = (Total Program Cost − Fuel) ÷ Total Vehicles ÷ 12"
+                                  values={`(${formatCurrency(currentComputed.totalProgramCostAnnual)} − ${formatCurrency(currentComputed.breakdown.fuel)}) ÷ ${formatInteger(currentComputed.totalVehicles)} ÷ 12 = ${formatCurrency(currentComputed.costPerVehPerMonthExFuel)}`}
+                                  result={formatCurrency(currentComputed.costPerVehPerMonthExFuel)}
+                                />
+                                <p className="text-xs text-gray-600 italic pt-2">Baseline excludes labor in the score metric.</p>
+                              </>
+                            ) : (
+                              <>
+                                <FormulaBlock formula="Registered Vehicles = Total Vehicles − Non-Registered Vehicles (Future Settings)" values={`${formatInteger(selectedScenario!.totalVehicles)} − ${formatInteger(futureAssumptions.nonRegisteredVehicles)} = ${formatInteger(futureRegistered)}`} result={`${formatInteger(futureRegistered)} registered`} />
+                                <FormulaBlock formula="Insurance per Registered Vehicle = Baseline Insurance ÷ Baseline Registered Vehicles" values={`${formatCurrency(todayInputs.insurance)} ÷ ${formatInteger(todayRegistered)} = ${formatCurrency(Math.round(insurancePerRegistered))}`} result={formatCurrency(Math.round(insurancePerRegistered)) + ' per vehicle'} />
+                                <FormulaBlock formula="Future Insurance = Insurance per Registered Vehicle × Future Registered Vehicles" values={`${formatCurrency(Math.round(insurancePerRegistered))} × ${formatInteger(futureRegistered)} = ${formatCurrency(currentComputed.breakdown.insurance)}`} result={formatCurrency(currentComputed.breakdown.insurance)} />
+                                <FormulaBlock formula="Registration per Registered Vehicle = Baseline Registration ÷ Baseline Registered Vehicles" values={`${formatCurrency(todayInputs.registration)} ÷ ${formatInteger(todayRegistered)} = ${formatCurrency(Math.round(registrationPerRegistered))}`} result={formatCurrency(Math.round(registrationPerRegistered)) + ' per vehicle'} />
+                                <FormulaBlock formula="Future Registration = Registration per Registered Vehicle × Future Registered Vehicles" values={`${formatCurrency(Math.round(registrationPerRegistered))} × ${formatInteger(futureRegistered)} = ${formatCurrency(currentComputed.breakdown.registration)}`} result={formatCurrency(currentComputed.breakdown.registration)} />
+                                <FormulaBlock formula="Maintenance per Vehicle = Baseline Maintenance ÷ Baseline Vehicles" values={`${formatCurrency(todayInputs.maintenance)} ÷ ${formatInteger(todayInputs.totalVehicles)} = ${formatCurrency(Math.round(maintenancePerVehicle))}`} result={formatCurrency(Math.round(maintenancePerVehicle)) + ' per vehicle'} />
+                                <FormulaBlock formula="Future Maintenance = Maintenance per Vehicle × Future Vehicles × (1 − Maintenance Savings %)" values={`${formatCurrency(Math.round(maintenancePerVehicle))} × ${formatInteger(futureVehicles)} × (1 − ${formatPercent(futureAssumptions.maintenanceSavingsPct)}) = ${formatCurrency(currentComputed.breakdown.maintenance)}`} result={formatCurrency(currentComputed.breakdown.maintenance)} />
+                                <FormulaBlock formula="Fuel per Vehicle (baseline) = Baseline Fuel ÷ Baseline Vehicles" values={`${formatCurrency(todayInputs.fuelAnnual)} ÷ ${formatInteger(todayInputs.totalVehicles)} = ${formatCurrency(Math.round(fuelPerVehicleBaseline))}`} result={formatCurrency(Math.round(fuelPerVehicleBaseline)) + ' per vehicle'} />
+                                <FormulaBlock formula="Future Fuel (pre efficiency) = Fuel per Vehicle × Future Vehicles" values={`${formatCurrency(Math.round(fuelPerVehicleBaseline))} × ${formatInteger(futureVehicles)} = ${formatCurrency(Math.round(fuelPreEfficiency))}`} result={formatCurrency(Math.round(fuelPreEfficiency))} />
+                                <FormulaBlock formula="Future Fuel (final) = Future Fuel (pre efficiency) × (1 − Fuel Efficiency %)" values={`${formatCurrency(Math.round(fuelPreEfficiency))} × (1 − ${formatPercent(futureAssumptions.fuelEfficiency)}) = ${formatCurrency(currentComputed.breakdown.fuel)}`} result={formatCurrency(currentComputed.breakdown.fuel)} />
+                                <FormulaBlock formula="Telematics = Telematics Cost per Vehicle × Future Vehicles" values={`${formatCurrency(futureAssumptions.telematicsCostPerVehicle)} × ${formatInteger(futureVehicles)} = ${formatCurrency(currentComputed.breakdown.telematics)}`} result={formatCurrency(currentComputed.breakdown.telematics)} />
+                                <FormulaBlock formula="Planon = Planon (annual)" values={formatCurrency(futureAssumptions.planonAnnual)} result={formatCurrency(currentComputed.breakdown.planon)} />
+                                <FormulaBlock formula="Labor = Labor (annual)" values={formatCurrency(futureAssumptions.laborAnnual)} result={formatCurrency(currentComputed.breakdown.labor)} />
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Section D: Totals and KPI */}
+                        <div>
+                          <h4 className="font-semibold text-gray-800 mb-2">D. Totals and KPI</h4>
+                          <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-0">
+                            <FormulaBlock
+                              formula="Total Program Cost (Annual) = Purchase − Resale + Insurance + Registration + Maintenance + Telematics + Planon + Labor + Fuel"
+                              values={`${formatCurrency(currentComputed.breakdown.purchase)} − ${formatCurrency(currentComputed.breakdown.resale)} + ${formatCurrency(currentComputed.breakdown.insurance)} + ${formatCurrency(currentComputed.breakdown.registration)} + ${formatCurrency(currentComputed.breakdown.maintenance)} + ${formatCurrency(currentComputed.breakdown.telematics)} + ${formatCurrency(currentComputed.breakdown.planon)} + ${formatCurrency(currentComputed.breakdown.labor)} + ${formatCurrency(currentComputed.breakdown.fuel)} = ${formatCurrency(currentComputed.totalProgramCostAnnual)}`}
+                              result={formatCurrency(currentComputed.totalProgramCostAnnual)}
+                            />
+                            <FormulaBlock
+                              formula="Cost / Vehicle / Month (ex fuel) = (Total Program Cost − Fuel) ÷ Total Vehicles ÷ 12"
+                              values={`(${formatCurrency(currentComputed.totalProgramCostAnnual)} − ${formatCurrency(currentComputed.breakdown.fuel)}) ÷ ${formatInteger(currentComputed.totalVehicles)} ÷ 12 = ${formatCurrency(currentComputed.costPerVehPerMonthExFuel)}`}
+                              result={formatCurrency(currentComputed.costPerVehPerMonthExFuel)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
             </section>
           </div>
           
@@ -1898,7 +2106,18 @@ function App() {
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-3 max-w-sm">
                   <NumberControl
-                    label="Telematics Cost Per Vehicle"
+                    label="Golf Carts / Non-registered Vehicles"
+                    value={futureAssumptions.nonRegisteredVehicles}
+                    stringValue={futureAssumptionsStrings.nonRegisteredVehicles}
+                    onChange={(value) => handleFutureAssumptionChange('nonRegisteredVehicles', value)}
+                    onBlur={() => handleFutureAssumptionBlur('nonRegisteredVehicles')}
+                    min={futureAssumptionBounds.nonRegisteredVehicles.min}
+                    max={futureAssumptionBounds.nonRegisteredVehicles.max}
+                    step={futureAssumptionBounds.nonRegisteredVehicles.step}
+                    handleKeyDown={handleKeyDown}
+                  />
+                  <NumberControl
+                    label="Telematics Cost Per Vehicle (Annual $)"
                     value={futureAssumptions.telematicsCostPerVehicle}
                     stringValue={futureAssumptionsStrings.telematicsCostPerVehicle}
                     onChange={(value) => handleFutureAssumptionChange('telematicsCostPerVehicle', value)}
@@ -1920,6 +2139,17 @@ function App() {
                     handleKeyDown={handleKeyDown}
                   />
                   <NumberControl
+                    label="Maintenance Savings %"
+                    value={futureAssumptions.maintenanceSavingsPct}
+                    stringValue={futureAssumptionsStrings.maintenanceSavingsPct}
+                    onChange={(value) => handleFutureAssumptionChange('maintenanceSavingsPct', value)}
+                    onBlur={() => handleFutureAssumptionBlur('maintenanceSavingsPct')}
+                    min={futureAssumptionBounds.maintenanceSavingsPct.min}
+                    max={futureAssumptionBounds.maintenanceSavingsPct.max}
+                    step={futureAssumptionBounds.maintenanceSavingsPct.step}
+                    handleKeyDown={handleKeyDown}
+                  />
+                  <NumberControl
                     label="Fuel Efficiency %"
                     value={futureAssumptions.fuelEfficiency}
                     stringValue={futureAssumptionsStrings.fuelEfficiency}
@@ -1928,17 +2158,6 @@ function App() {
                     min={futureAssumptionBounds.fuelEfficiency.min}
                     max={futureAssumptionBounds.fuelEfficiency.max}
                     step={futureAssumptionBounds.fuelEfficiency.step}
-                    handleKeyDown={handleKeyDown}
-                  />
-                  <NumberControl
-                    label="Service Life Years"
-                    value={futureAssumptions.serviceLifeYears}
-                    stringValue={futureAssumptionsStrings.serviceLifeYears}
-                    onChange={(value) => handleFutureAssumptionChange('serviceLifeYears', value)}
-                    onBlur={() => handleFutureAssumptionBlur('serviceLifeYears')}
-                    min={futureAssumptionBounds.serviceLifeYears.min}
-                    max={futureAssumptionBounds.serviceLifeYears.max}
-                    step={futureAssumptionBounds.serviceLifeYears.step}
                     handleKeyDown={handleKeyDown}
                   />
                   <NumberControl
