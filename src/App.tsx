@@ -247,8 +247,8 @@ function formatCurrencyShort(value: number): string {
   return `${sign}$${Math.round(abs)}`
 }
 
-// Unified numeric input: same size, padding, font, radius, and premium focus (Baseline + Future Assumptions + Primary Levers)
-const inputNumericClass = 'h-7 w-20 min-w-20 max-w-20 px-1.5 py-0.5 text-right text-xs bg-white border border-gray-300 rounded-md transition-[border-color,box-shadow] duration-150 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:ring-offset-0 focus:outline-none'
+// Unified numeric input: same size, padding, font, radius, and premium focus (Baseline + Future Assumptions + Scenario Inputs)
+const inputNumericClass = 'h-7 w-20 min-w-20 max-w-20 px-1.5 py-0.5 text-right text-xs bg-white border border-gray-300 rounded-md transition-[border-color,box-shadow] duration-150 focus:border-princeton focus:ring-2 focus:ring-[#EE7F2D]/20 focus:ring-offset-0 focus:outline-none'
 
 // Compact lever row: label + value right, slider below; bubble above thumb, contained in slider wrapper (no overflow).
 function LeverControl({
@@ -299,7 +299,7 @@ function LeverControl({
                 onChange={(e) => onInputChange(e.target.value)}
                 onBlur={onInputBlur}
                 onKeyDown={(e) => onInputKeyDown(e, onInputBlur)}
-                className="w-full px-1 py-0.5 text-right text-sm text-gray-900 border-b border-gray-300 rounded-none bg-transparent focus:outline-none focus:border-blue-500"
+                className="w-full px-1 py-0.5 text-right text-sm text-gray-900 border-b border-gray-300 rounded-none bg-transparent focus:outline-none focus:border-princeton"
               />
             ) : (
               <button
@@ -337,7 +337,7 @@ function LeverControl({
               onFocus={() => setShowBubble(true)}
               onBlur={() => setShowBubble(false)}
               disabled={disabled}
-              className="w-full h-1.5 rounded-full appearance-none bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-sm [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-0"
+              className="w-full h-1.5 rounded-full appearance-none bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-princeton [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-sm [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-princeton [&::-moz-range-thumb]:border-0"
             />
           </div>
         </div>
@@ -399,7 +399,7 @@ const NumberControl = ({
         step={step ?? 1}
         value={sliderValue}
         onChange={(e) => onSliderChange(Number(e.target.value))}
-        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-princeton"
       />
     )}
   </div>
@@ -1396,7 +1396,8 @@ function App() {
   }
 
   return (
-    <div className="h-screen bg-gray-100 flex overflow-hidden relative">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
       {/* Toast Notification */}
       {toast.visible && (
         <div className="fixed top-4 right-4 z-50 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg text-sm transition-opacity duration-200">
@@ -1466,7 +1467,7 @@ function App() {
         }`}
       >
         <div className="w-full flex-1 flex flex-col min-h-0 2xl:max-w-[1400px] 2xl:mx-auto">
-        {/* Single scroll: Fleet Scenarios + Primary Levers (laptop-friendly) */}
+        {/* Single scroll: Fleet Scenarios + Scenario Inputs (laptop-friendly) */}
         <div className="flex-1 min-h-0 overflow-auto flex flex-col gap-6">
           <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col shrink-0">
           <div className="flex justify-between items-center mb-4">
@@ -1568,7 +1569,7 @@ function App() {
                     onClick={() => setResultsViewMode('score')}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                       resultsViewMode === 'score'
-                        ? 'bg-white text-gray-900 shadow-sm'
+                        ? 'bg-white text-gray-900 shadow-sm ring-1 ring-princeton/50'
                         : 'text-gray-600 hover:text-gray-800'
                     }`}
                   >
@@ -1581,7 +1582,7 @@ function App() {
                     onClick={() => setResultsViewMode('costDrivers')}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                       resultsViewMode === 'costDrivers'
-                        ? 'bg-white text-gray-900 shadow-sm'
+                        ? 'bg-white text-gray-900 shadow-sm ring-1 ring-princeton/50'
                         : 'text-gray-600 hover:text-gray-800'
                     }`}
                   >
@@ -1596,7 +1597,7 @@ function App() {
                   <div className="w-full min-w-0 xl:max-w-6xl xl:mx-auto">
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full min-w-0">
                       {/* Baseline card */}
-                      <div className={`rounded-xl border flex flex-col min-w-0 shadow-sm overflow-hidden ${viewingBaseline ? 'border-blue-400 bg-blue-50/70 ring-2 ring-blue-200' : 'border-gray-200 bg-gray-50/80'}`}>
+                      <div className={`rounded-xl border flex flex-col min-w-0 shadow-sm overflow-hidden ${viewingBaseline ? 'border-princeton bg-[#EE7F2D]/10 ring-2 ring-[#EE7F2D]/30' : 'border-gray-200 bg-gray-50/80'}`}>
                         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/60">
                           <button type="button" onClick={() => { setViewingBaseline(true); setOpenCardMenuId(null) }} className="flex-1 min-w-0 text-left">
                             <span className="text-sm font-medium text-gray-600 truncate block" title="Today (Baseline)">Today (Baseline)</span>
@@ -1645,7 +1646,7 @@ function App() {
                         const perMoDeltaClass = dPerMo > 0 ? 'text-red-600' : dPerMo < 0 ? 'text-green-600' : 'text-gray-400'
                         const selected = !viewingBaseline && selectedScenario && scenario.id === selectedScenario.id
                         return (
-                          <div key={scenario.id} className={`rounded-xl border flex flex-col min-w-0 shadow-sm overflow-hidden ${selected ? 'border-blue-400 bg-blue-50/70 ring-2 ring-blue-200' : 'border-gray-200 bg-white'}`}>
+                          <div key={scenario.id} className={`rounded-xl border flex flex-col min-w-0 shadow-sm overflow-hidden ${selected ? 'border-princeton bg-[#EE7F2D]/10 ring-2 ring-[#EE7F2D]/30' : 'border-gray-200 bg-white'}`}>
                             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/60 gap-1">
                               {editingScenarioName === scenario.id ? (
                                 <input
@@ -1655,7 +1656,7 @@ function App() {
                                   onBlur={() => { if (editingScenarioNameValue.trim()) handleScenarioNameChange(editingScenarioNameValue.trim()); setEditingScenarioName(null) }}
                                   onKeyDown={(e) => { if (e.key === 'Enter') { if (editingScenarioNameValue.trim()) handleScenarioNameChange(editingScenarioNameValue.trim()); setEditingScenarioName(null) } else if (e.key === 'Escape') setEditingScenarioName(null) }}
                                   autoFocus
-                                  className="flex-1 min-w-0 px-2 py-1 text-sm border border-blue-500 rounded bg-white"
+                                  className="flex-1 min-w-0 px-2 py-1 text-sm border border-princeton rounded bg-white"
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               ) : (
@@ -1704,13 +1705,13 @@ function App() {
                       })}
 
                       {canAddScenario && (
-                        <button type="button" onClick={handleAddScenario} className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/50 hover:border-blue-300 hover:bg-blue-50/30 flex items-center justify-center min-h-[140px] text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors min-w-0">
+                        <button type="button" onClick={handleAddScenario} className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/50 hover:border-princeton/60 hover:bg-[#EE7F2D]/5 flex items-center justify-center min-h-[140px] text-sm font-medium text-gray-500 hover:text-princeton transition-colors min-w-0">
                           + Add scenario
                         </button>
                       )}
                     </div>
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-3">Total Program Cost is annual. $/Veh/Mo excludes fuel.</p>
+                  <p className="text-xs text-gray-400 mt-3">Total Program Cost is annual. $/Veh/Mo excludes fuel.</p>
                 </>
               )}
 
@@ -1732,7 +1733,7 @@ function App() {
                             <button
                               type="button"
                               onClick={() => { setViewingBaseline(true); leversSectionRef.current?.scrollIntoView({ behavior: 'smooth' }) }}
-                              className={`w-full py-2 px-2 rounded-md transition-colors ${viewingBaseline ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-200' : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100'}`}
+                              className={`w-full py-2 px-2 rounded-md transition-colors ${viewingBaseline ? 'bg-[#EE7F2D]/15 text-[#c9681e] ring-1 ring-[#EE7F2D]/30' : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100'}`}
                             >
                               Today (Baseline)
                             </button>
@@ -1742,7 +1743,7 @@ function App() {
                               <button
                                 type="button"
                                 onClick={() => { setViewingBaseline(false); setSelectedScenarioIndex(idx); leversSectionRef.current?.scrollIntoView({ behavior: 'smooth' }) }}
-                                className={`w-full py-2 px-2 rounded-md font-medium transition-colors ${!viewingBaseline && selectedScenario && scenario.id === selectedScenario.id ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-200' : 'bg-gray-50/60 text-gray-600 hover:bg-gray-100'}`}
+                                className={`w-full py-2 px-2 rounded-md font-medium transition-colors ${!viewingBaseline && selectedScenario && scenario.id === selectedScenario.id ? 'bg-[#EE7F2D]/15 text-[#c9681e] ring-1 ring-[#EE7F2D]/30' : 'bg-gray-50/60 text-gray-600 hover:bg-gray-100'}`}
                               >
                                 {scenario.name}
                               </button>
@@ -1766,7 +1767,7 @@ function App() {
                               return (
                                 <td
                                   key={scenario.id}
-                                  className={`py-3 px-5 text-center tabular-nums ${selectedScenario && scenario.id === selectedScenario.id ? 'bg-blue-50/40' : ''}`}
+                                  className={`py-3 px-5 text-center tabular-nums ${selectedScenario && scenario.id === selectedScenario.id ? 'bg-[#EE7F2D]/10' : ''}`}
                                 >
                                   <span className={row.key === 'totalProgramCost' ? `font-medium ${deltaClass}` : ''}>{val}</span>
                                   {row.key === 'totalProgramCost' && delta !== 0 && (
@@ -1798,7 +1799,7 @@ function App() {
                                 return (
                                   <td
                                     key={scenario.id}
-                                    className={`py-3 px-5 text-center tabular-nums ${selectedScenario && scenario.id === selectedScenario.id ? 'bg-blue-50/40' : ''}`}
+                                    className={`py-3 px-5 text-center tabular-nums ${selectedScenario && scenario.id === selectedScenario.id ? 'bg-[#EE7F2D]/10' : ''}`}
                                   >
                                     <span className={`font-medium ${deltaClass}`}>{formatCurrency(val)}</span>
                                     {delta !== 0 && (
@@ -2060,10 +2061,10 @@ function App() {
           </div>
         </div>
 
-        {/* Primary Levers — compact 2x2 grid (same scroll as Fleet Scenarios) */}
+        {/* Scenario Inputs — compact 2x2 grid (same scroll as Fleet Scenarios) */}
         <div className="flex-none min-w-0 w-full overflow-hidden shrink-0" ref={leversSectionRef}>
           <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col min-w-0">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Primary Levers</h3>
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Scenario Inputs</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden min-w-0">
             {([
               { field: 'totalVehicles' as const, label: 'Total Vehicles', format: (v: number) => formatInteger(v), min: scenarioBounds.totalVehicles.min, max: scenarioBounds.totalVehicles.max, step: scenarioBounds.totalVehicles.step },
@@ -2097,9 +2098,10 @@ function App() {
               )
             })}
           </div>
+          </div>
         </div>
         </div>
-        </div>
+      </div>
       </div>
 
       {/* Bottom Slide-Up Drawer for Future Settings */}
@@ -2225,6 +2227,18 @@ function App() {
             </div>
           </div>
       </div>
+
+      {/* Footer — light, minimal vertical footprint */}
+      <footer className="flex-shrink-0 flex items-center justify-between gap-4 px-4 py-2 text-xs text-gray-500 bg-gray-100 border-t border-gray-200/80">
+        <div className="flex items-center min-w-0">
+          <a href="https://www.nunes-ueno.com/" target="_blank" rel="noopener noreferrer" className="flex-shrink-0" aria-label="NUC">
+            <img src="/Narrow%20Logo%20Transparent.png" alt="NUC" className="h-4 max-h-4 w-auto object-contain" />
+          </a>
+        </div>
+        <div className="flex-shrink-0 text-gray-400">
+          v0.3 • <a href="mailto:fleet@princeton.edu" className="hover:underline hover:text-gray-500">Feedback: fleet@princeton.edu</a> • © Princeton University
+        </div>
+      </footer>
     </div>
   )
 }
