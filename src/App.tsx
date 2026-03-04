@@ -1843,18 +1843,57 @@ function App() {
                   const fuelPerVehicleBaseline = todayInputs.totalVehicles > 0 ? todayInputs.fuelAnnual / todayInputs.totalVehicles : 0
                   const futureVehicles = selectedScenario?.totalVehicles ?? todayInputs.totalVehicles
                   const fuelPreEfficiency = fuelPerVehicleBaseline * futureVehicles
-                  const copySummary = () => {
-                    const lines: string[] = [
-                      'Model Logic Summary',
-                      `Case: ${isBaseline ? 'Baseline (snapshot year)' : selectedScenario!.name}`,
-                      `Total Program Cost (Annual): ${formatCurrency(currentComputed.totalProgramCostAnnual)}`,
-                      `Cost / Vehicle / Month (ex fuel): ${formatCurrency(currentComputed.costPerVehPerMonthExFuel)}`,
-                      `Total Vehicles: ${formatInteger(currentComputed.totalVehicles)}`,
-                      ...(currentComputed.lifecycleYears != null ? [`Lifecycle (Years): ${formatInteger(currentComputed.lifecycleYears)}`] : []),
-                      '---',
-                      ...(Object.entries(currentComputed.breakdown) as [keyof typeof currentComputed.breakdown, number][]).map(([k, v]) => `${k}: ${formatCurrency(v)}`),
-                    ]
-                    void navigator.clipboard.writeText(lines.join('\n')).then(() => showToast('Summary copied to clipboard'))
+                  const pushBlock = (lines: string[], formula: string, values: string, result: string) => {
+                    lines.push('Formula', formula, 'Values', values, 'Result', result, '')
+                  }
+                  const copyModelLogic = () => {
+                    const lines: string[] = ['Model Logic', `Case: ${isBaseline ? 'Baseline (snapshot year)' : selectedScenario!.name}`, '']
+                    lines.push('A. Scenario context', '')
+                    lines.push(`Case: ${isBaseline ? 'Baseline (snapshot year)' : selectedScenario!.name}`)
+                    lines.push(`Total Vehicles: ${formatInteger(currentComputed.totalVehicles)}`)
+                    if (currentComputed.lifecycleYears != null && selectedScenario) {
+                      lines.push(`Lifecycle Years: ${formatInteger(currentComputed.lifecycleYears)}`)
+                      lines.push(`Purchase Reduction %: ${formatPercent(selectedScenario.strategicSavings)}`)
+                      lines.push(`Resale Recovery %: ${formatPercent(selectedScenario.resale)}`)
+                    } else {
+                      lines.push('Labor excluded in baseline. Future settings do not apply.')
+                    }
+                    lines.push('')
+                    if (!isBaseline && scenarioRaw && selectedScenario) {
+                      lines.push('B. Core lifecycle math', '')
+                      pushBlock(lines, 'Vehicles Purchased per Year = Total Vehicles ÷ Lifecycle Years', `${formatInteger(selectedScenario.totalVehicles)} ÷ ${formatInteger(selectedScenario.lifecycle)} = ${formatInteger(Math.round(scenarioRaw.replacementVolume))}`, `${formatInteger(Math.round(scenarioRaw.replacementVolume))} vehicles/yr`)
+                      pushBlock(lines, 'Annual Purchase Spend (gross) = Vehicles Purchased per Year × Avg Vehicle Price', `${formatInteger(Math.round(scenarioRaw.replacementVolume))} × ${formatCurrency(derivedAvgVehicleCost)} = ${formatCurrency(Math.round(scenarioRaw.replacementVolume * derivedAvgVehicleCost))}`, formatCurrency(Math.round(scenarioRaw.replacementVolume * derivedAvgVehicleCost)))
+                      const gross = scenarioRaw.replacementVolume * derivedAvgVehicleCost
+                      const savings = gross * (selectedScenario.strategicSavings / 100)
+                      pushBlock(lines, 'Strategic Procurement Savings = Annual Purchase Spend (gross) × Purchase Reduction %', `${formatCurrency(Math.round(gross))} × ${formatPercent(selectedScenario.strategicSavings)} = ${formatCurrency(Math.round(savings))}`, formatCurrency(Math.round(savings)))
+                      pushBlock(lines, 'Net Annual Purchase Spend = Annual Purchase Spend (gross) − Strategic Procurement Savings', `${formatCurrency(Math.round(gross))} − ${formatCurrency(Math.round(savings))} = ${formatCurrency(currentComputed.breakdown.purchase)}`, formatCurrency(currentComputed.breakdown.purchase))
+                      pushBlock(lines, 'Annual Resale Value = (Vehicles Purchased per Year × Avg Vehicle Price) × Resale Recovery %', `(${formatInteger(Math.round(scenarioRaw.replacementVolume))} × ${formatCurrency(derivedAvgVehicleCost)}) × ${formatPercent(selectedScenario.resale)} = ${formatCurrency(currentComputed.breakdown.resale)}`, formatCurrency(currentComputed.breakdown.resale))
+                      pushBlock(lines, 'Net Capital Cost (annual) = Net Annual Purchase Spend − Annual Resale Value', `${formatCurrency(currentComputed.breakdown.purchase)} − ${formatCurrency(currentComputed.breakdown.resale)} = ${formatCurrency(currentComputed.breakdown.purchase - currentComputed.breakdown.resale)}`, formatCurrency(currentComputed.breakdown.purchase - currentComputed.breakdown.resale))
+                    }
+                    lines.push('C. Scaled operating costs', '')
+                    if (isBaseline) {
+                      pushBlock(lines, 'Total Program Cost (Baseline) = sum of baseline cost lines', `${formatCurrency(currentComputed.breakdown.purchase)} − ${formatCurrency(currentComputed.breakdown.resale)} + ${formatCurrency(currentComputed.breakdown.insurance)} + … = ${formatCurrency(currentComputed.totalProgramCostAnnual)}`, formatCurrency(currentComputed.totalProgramCostAnnual))
+                      pushBlock(lines, 'Cost / Vehicle / Month (Baseline, ex fuel) = (Total Program Cost − Fuel) ÷ Total Vehicles ÷ 12', `(${formatCurrency(currentComputed.totalProgramCostAnnual)} − ${formatCurrency(currentComputed.breakdown.fuel)}) ÷ ${formatInteger(currentComputed.totalVehicles)} ÷ 12 = ${formatCurrency(currentComputed.costPerVehPerMonthExFuel)}`, formatCurrency(currentComputed.costPerVehPerMonthExFuel))
+                      lines.push('Baseline excludes labor in the score metric.', '')
+                    } else {
+                      pushBlock(lines, 'Registered Vehicles = Total Vehicles − Non-Registered Vehicles (Future Settings)', `${formatInteger(selectedScenario!.totalVehicles)} − ${formatInteger(futureAssumptions.nonRegisteredVehicles)} = ${formatInteger(futureRegistered)}`, `${formatInteger(futureRegistered)} registered`)
+                      pushBlock(lines, 'Insurance per Registered Vehicle = Baseline Insurance ÷ Baseline Registered Vehicles', `${formatCurrency(todayInputs.insurance)} ÷ ${formatInteger(todayRegistered)} = ${formatCurrency(Math.round(insurancePerRegistered))}`, formatCurrency(Math.round(insurancePerRegistered)) + ' per vehicle')
+                      pushBlock(lines, 'Future Insurance = Insurance per Registered Vehicle × Future Registered Vehicles', `${formatCurrency(Math.round(insurancePerRegistered))} × ${formatInteger(futureRegistered)} = ${formatCurrency(currentComputed.breakdown.insurance)}`, formatCurrency(currentComputed.breakdown.insurance))
+                      pushBlock(lines, 'Registration per Registered Vehicle = Baseline Registration ÷ Baseline Registered Vehicles', `${formatCurrency(todayInputs.registration)} ÷ ${formatInteger(todayRegistered)} = ${formatCurrency(Math.round(registrationPerRegistered))}`, formatCurrency(Math.round(registrationPerRegistered)) + ' per vehicle')
+                      pushBlock(lines, 'Future Registration = Registration per Registered Vehicle × Future Registered Vehicles', `${formatCurrency(Math.round(registrationPerRegistered))} × ${formatInteger(futureRegistered)} = ${formatCurrency(currentComputed.breakdown.registration)}`, formatCurrency(currentComputed.breakdown.registration))
+                      pushBlock(lines, 'Maintenance per Vehicle = Baseline Maintenance ÷ Baseline Vehicles', `${formatCurrency(todayInputs.maintenance)} ÷ ${formatInteger(todayInputs.totalVehicles)} = ${formatCurrency(Math.round(maintenancePerVehicle))}`, formatCurrency(Math.round(maintenancePerVehicle)) + ' per vehicle')
+                      pushBlock(lines, 'Future Maintenance = Maintenance per Vehicle × Future Vehicles × (1 − Maintenance Savings %)', `${formatCurrency(Math.round(maintenancePerVehicle))} × ${formatInteger(futureVehicles)} × (1 − ${formatPercent(futureAssumptions.maintenanceSavingsPct)}) = ${formatCurrency(currentComputed.breakdown.maintenance)}`, formatCurrency(currentComputed.breakdown.maintenance))
+                      pushBlock(lines, 'Fuel per Vehicle (baseline) = Baseline Fuel ÷ Baseline Vehicles', `${formatCurrency(todayInputs.fuelAnnual)} ÷ ${formatInteger(todayInputs.totalVehicles)} = ${formatCurrency(Math.round(fuelPerVehicleBaseline))}`, formatCurrency(Math.round(fuelPerVehicleBaseline)) + ' per vehicle')
+                      pushBlock(lines, 'Future Fuel (pre efficiency) = Fuel per Vehicle × Future Vehicles', `${formatCurrency(Math.round(fuelPerVehicleBaseline))} × ${formatInteger(futureVehicles)} = ${formatCurrency(Math.round(fuelPreEfficiency))}`, formatCurrency(Math.round(fuelPreEfficiency)))
+                      pushBlock(lines, 'Future Fuel (final) = Future Fuel (pre efficiency) × (1 − Fuel Efficiency %)', `${formatCurrency(Math.round(fuelPreEfficiency))} × (1 − ${formatPercent(futureAssumptions.fuelEfficiency)}) = ${formatCurrency(currentComputed.breakdown.fuel)}`, formatCurrency(currentComputed.breakdown.fuel))
+                      pushBlock(lines, 'Telematics = Telematics Cost per Vehicle × Future Vehicles', `${formatCurrency(futureAssumptions.telematicsCostPerVehicle)} × ${formatInteger(futureVehicles)} = ${formatCurrency(currentComputed.breakdown.telematics)}`, formatCurrency(currentComputed.breakdown.telematics))
+                      pushBlock(lines, 'Planon = Planon (annual)', formatCurrency(futureAssumptions.planonAnnual), formatCurrency(currentComputed.breakdown.planon))
+                      pushBlock(lines, 'Labor = Labor (annual)', formatCurrency(futureAssumptions.laborAnnual), formatCurrency(currentComputed.breakdown.labor))
+                    }
+                    lines.push('D. Totals and KPI', '')
+                    pushBlock(lines, 'Total Program Cost (Annual) = Purchase − Resale + Insurance + Registration + Maintenance + Telematics + Planon + Labor + Fuel', `${formatCurrency(currentComputed.breakdown.purchase)} − ${formatCurrency(currentComputed.breakdown.resale)} + ${formatCurrency(currentComputed.breakdown.insurance)} + ${formatCurrency(currentComputed.breakdown.registration)} + ${formatCurrency(currentComputed.breakdown.maintenance)} + ${formatCurrency(currentComputed.breakdown.telematics)} + ${formatCurrency(currentComputed.breakdown.planon)} + ${formatCurrency(currentComputed.breakdown.labor)} + ${formatCurrency(currentComputed.breakdown.fuel)} = ${formatCurrency(currentComputed.totalProgramCostAnnual)}`, formatCurrency(currentComputed.totalProgramCostAnnual))
+                    pushBlock(lines, 'Cost / Vehicle / Month (ex fuel) = (Total Program Cost − Fuel) ÷ Total Vehicles ÷ 12', `(${formatCurrency(currentComputed.totalProgramCostAnnual)} − ${formatCurrency(currentComputed.breakdown.fuel)}) ÷ ${formatInteger(currentComputed.totalVehicles)} ÷ 12 = ${formatCurrency(currentComputed.costPerVehPerMonthExFuel)}`, formatCurrency(currentComputed.costPerVehPerMonthExFuel))
+                    void navigator.clipboard.writeText(lines.join('\n').trimEnd()).then(() => showToast('Model Logic copied to clipboard'))
                   }
                   const FormulaBlock = ({ formula, values, result }: { formula: string; values: string; result: string }) => (
                     <div className="py-2 border-b border-gray-100 last:border-0">
@@ -1871,10 +1910,10 @@ function App() {
                       <div className="flex justify-end mb-3">
                         <button
                           type="button"
-                          onClick={copySummary}
+                          onClick={copyModelLogic}
                           className="text-xs px-2 py-1.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                         >
-                          Copy summary
+                          Copy
                         </button>
                       </div>
                       <div className="space-y-4 text-sm">
